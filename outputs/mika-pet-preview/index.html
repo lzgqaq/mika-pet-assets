@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Misono Mika Pet Preview</title>
+  <style>
+    :root { color-scheme: dark; --bg: #111827; --panel: #1b2438; --line: #35415f; --text: #edf2ff; --muted: #aab6d2; --accent: #f39acb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: system-ui, "Segoe UI", sans-serif; color: var(--text); background: radial-gradient(circle at top, #25335a, var(--bg) 56%); }
+    main { width: min(1120px, 100%); margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 6px; font-size: clamp(22px, 4vw, 34px); }
+    .subtitle { color: var(--muted); margin-bottom: 18px; }
+    .toolbar, .panel { background: rgba(27,36,56,.94); border: 1px solid var(--line); border-radius: 16px; padding: 14px; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    button, select, input[type="range"] { accent-color: var(--accent); }
+    button, select { color: var(--text); background: #273351; border: 1px solid #4a5982; border-radius: 9px; padding: 8px 11px; font: inherit; cursor: pointer; }
+    button.active { background: #9b5d8c; border-color: #f3a4d0; }
+    button:hover { border-color: #f3a4d0; }
+    label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+    .stage { margin-top: 16px; display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 16px; }
+    .canvas-wrap { min-height: 520px; display: grid; place-items: center; overflow: hidden; border-radius: 16px; background-color: #19223a; background-image: linear-gradient(45deg, #202b48 25%, transparent 25%), linear-gradient(-45deg, #202b48 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #202b48 75%), linear-gradient(-45deg, transparent 75%, #202b48 75%); background-size: 32px 32px; background-position: 0 0, 0 16px, 16px -16px, -16px 0; }
+    canvas { width: min(72vw, 576px); height: auto; image-rendering: auto; filter: drop-shadow(0 18px 18px rgba(0,0,0,.3)); }
+    canvas.pixel { image-rendering: pixelated; image-rendering: crisp-edges; }
+    .panel h2 { margin: 0 0 12px; font-size: 17px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(74,89,130,.4); }
+    .row:last-child { border-bottom: 0; }
+    .key { color: var(--muted); }
+    .value { text-align: right; font-variant-numeric: tabular-nums; }
+    .state-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .state-buttons button { font-size: 13px; padding: 7px 5px; }
+    .control { margin-top: 12px; display: grid; gap: 8px; }
+    input[type="range"] { width: 100%; }
+    .ok { color: #9ce6b8; }
+    .warn { color: #ffd28c; }
+    .error { color: #ff9b9b; }
+    .foot { margin-top: 14px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 760px) { main { padding: 14px; } .stage { grid-template-columns: 1fr; } .canvas-wrap { min-height: 390px; } canvas { width: min(92vw, 520px); } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>未花动画宠物实时预览</h1>
+    <div class="subtitle">检查动作连续性、翅膀开合、帧节奏和图集配置</div>
+
+    <section class="toolbar">
+      <button id="styleQ" class="active">Q版</button>
+      <button id="stylePixel">像素风</button>
+      <button id="play">暂停</button>
+      <label>速度 <input id="speed" type="range" min="50" max="180" value="100" step="5"><span id="speedValue">100%</span></label>
+      <label><input id="grid" type="checkbox"> 显示网格</label>
+    </section>
+
+    <section class="stage">
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="canvas" width="576" height="624"></canvas></div>
+      <aside class="panel">
+        <h2>动作</h2>
+        <div class="state-buttons" id="stateButtons"></div>
+        <div class="control">
+          <label>手动帧 <input id="frame" type="range" min="0" max="5" value="0" step="1"></label>
+        </div>
+        <h2 style="margin-top:18px">实时状态</h2>
+        <div class="row"><span class="key">风格</span><span class="value" id="styleName">Q版</span></div>
+        <div class="row"><span class="key">动作</span><span class="value" id="stateName">idle</span></div>
+        <div class="row"><span class="key">当前帧</span><span class="value" id="frameValue">1 / 6</span></div>
+        <div class="row"><span class="key">帧节奏</span><span class="value" id="timingValue">160 ms</span></div>
+        <div class="row"><span class="key">图集</span><span class="value" id="atlasValue">检查中…</span></div>
+        <div class="row"><span class="key">检查</span><span class="value ok" id="checkValue">检查中…</span></div>
+        <div class="foot">透明区域以棋盘格显示。像素风使用 nearest-neighbor，避免预览缩放时被模糊。</div>
+      </aside>
+    </section>
+  </main>
+  <script>
+    const styles = {
+      q: { label: "Q版", dir: "../mika-pet-q/", pixel: false },
+      pixel: { label: "像素风", dir: "../mika-pet-pixel/", pixel: true }
+    };
+    const fallbackTimings = { idle: 260, "running-right": 155, "running-left": 155, waving: 210, jumping: 175, failed: 220, waiting: 210, running: 160, review: 220 };
+    let timings = { ...fallbackTimings };
+    const labels = { idle: "待机", "running-right": "向右跑", "running-left": "向左跑", waving: "挥手", jumping: "跳跃", failed: "失败", waiting: "等待", running: "工作", review: "检查" };
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const stateButtons = document.getElementById("stateButtons");
+    const styleName = document.getElementById("styleName");
+    const stateName = document.getElementById("stateName");
+    const frameValue = document.getElementById("frameValue");
+    const frameSlider = document.getElementById("frame");
+    const timingValue = document.getElementById("timingValue");
+    const atlasValue = document.getElementById("atlasValue");
+    const checkValue = document.getElementById("checkValue");
+    let styleKey = "q", manifest = null, image = null, state = null, frameIndex = 0, playing = true, speed = 1, lastTime = 0, elapsed = 0;
+
+    function activeStyle() { return styles[styleKey]; }
+    function currentTiming() { return (timings[state?.state] || 140) / speed; }
+    function setText(id, value) { document.getElementById(id).textContent = value; }
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!image || !state) return;
+      const sx = frameIndex * 192, sy = state.row * 208;
+      ctx.imageSmoothingEnabled = !activeStyle().pixel;
+      ctx.drawImage(image, sx, sy, 192, 208, 192, 104, 192, 208);
+      setText("frameValue", `${frameIndex + 1} / ${state.frames}`);
+      frameSlider.max = Math.max(0, state.frames - 1);
+      frameSlider.value = frameIndex;
+    }
+    function renderLoop(now) {
+      const dt = Math.min(100, now - lastTime || 0); lastTime = now;
+      if (playing && state) { elapsed += dt; while (elapsed >= currentTiming()) { elapsed -= currentTiming(); frameIndex = (frameIndex + 1) % state.frames; draw(); } }
+      requestAnimationFrame(renderLoop);
+    }
+    function makeStateButtons() {
+      stateButtons.innerHTML = "";
+      for (const item of manifest.states) {
+        const b = document.createElement("button"); b.textContent = labels[item.state] || item.state; b.dataset.state = item.state;
+        b.onclick = () => selectState(item.state); stateButtons.appendChild(b);
+      }
+    }
+    function selectState(name) {
+      state = manifest.states.find(x => x.state === name) || manifest.states[0]; frameIndex = 0; elapsed = 0;
+      stateButtons.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.state === name));
+      setText("stateName", `${labels[name] || name} (${name})`); setText("timingValue", `${timings[name] || 140} ms`); draw();
+    }
+    async function loadStyle(next) {
+      styleKey = next; const cfg = activeStyle();
+      document.getElementById("styleQ").classList.toggle("active", next === "q"); document.getElementById("stylePixel").classList.toggle("active", next === "pixel");
+      canvas.classList.toggle("pixel", cfg.pixel); setText("styleName", cfg.label); checkValue.textContent = "加载中…"; checkValue.className = "value warn";
+      const response = await fetch(cfg.dir + "pet.json?cache=" + Date.now()); manifest = await response.json();
+      timings = { ...fallbackTimings, ...(manifest.animation?.stateTimingMs || {}) };
+      image = new Image(); image.src = cfg.dir + manifest.spritesheetPath + "?cache=" + Date.now(); await image.decode();
+      setText("atlasValue", `${manifest.atlas.width}×${manifest.atlas.height}`); checkValue.textContent = validateManifest(); checkValue.className = "value " + (checkValue.textContent === "通过" ? "ok" : "error");
+      makeStateButtons(); selectState(manifest.states[0].state);
+    }
+    function validateManifest() {
+      const a = manifest.atlas || {}; const goodAtlas = a.width === 1536 && a.height === 1872 && a.cellWidth === 192 && a.cellHeight === 208;
+      const goodRows = Array.isArray(manifest.states) && manifest.states.length === 9 && manifest.states.every(s => s.frames > 0 && s.row >= 0 && s.row < 9);
+      return goodAtlas && goodRows ? "通过" : "有问题";
+    }
+    document.getElementById("styleQ").onclick = () => loadStyle("q");
+    document.getElementById("stylePixel").onclick = () => loadStyle("pixel");
+    document.getElementById("play").onclick = e => { playing = !playing; e.currentTarget.textContent = playing ? "暂停" : "播放"; };
+    document.getElementById("speed").oninput = e => { speed = Number(e.target.value) / 100; setText("speedValue", e.target.value + "%"); };
+    document.getElementById("grid").onchange = e => { document.getElementById("canvasWrap").style.backgroundSize = e.target.checked ? "16px 16px" : "32px 32px"; };
+    frameSlider.oninput = e => { frameIndex = Number(e.target.value); elapsed = 0; draw(); };
+    loadStyle("q").catch(err => { checkValue.textContent = "加载失败"; checkValue.className = "value error"; console.error(err); });
+    requestAnimationFrame(renderLoop);
+  </script>
+</body>
+</html>

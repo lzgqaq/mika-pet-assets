@@ -1,0 +1,84 @@
+{
+    "id":  "misono-mika-pixel",
+    "displayName":  "Misono Mika - Pixel Animated Pet",
+    "description":  "Animated Mika-inspired angel pet with subtle attached-wing motion.",
+    "spritesheetPath":  "spritesheet.webp",
+    "atlas":  {
+                  "columns":  8,
+                  "rows":  9,
+                  "cellWidth":  192,
+                  "cellHeight":  208,
+                  "width":  1536,
+                  "height":  1872
+              },
+    "chromaKey":  {
+                      "name":  "lime",
+                      "hex":  "#00FF00"
+                  },
+    "states":  [
+                   {
+                       "state":  "idle",
+                       "row":  0,
+                       "frames":  8
+                   },
+                   {
+                       "state":  "running-right",
+                       "row":  1,
+                       "frames":  8
+                   },
+                   {
+                       "state":  "running-left",
+                       "row":  2,
+                       "frames":  8
+                   },
+                   {
+                       "state":  "waving",
+                       "row":  3,
+                       "frames":  8
+                   },
+                   {
+                       "state":  "jumping",
+                       "row":  4,
+                       "frames":  8
+                   },
+                   {
+                       "state":  "failed",
+                       "row":  5,
+                       "frames":  8
+                   },
+                   {
+                       "state":  "waiting",
+                       "row":  6,
+                       "frames":  8
+                   },
+                   {
+                       "state":  "running",
+                       "row":  7,
+                       "frames":  8
+                   },
+                   {
+                       "state":  "review",
+                       "row":  8,
+                       "frames":  8
+                   }
+               ],
+    "animation":  {
+                      "defaultFps":  10,
+                      "loop":  true,
+                      "stateTimingMs":  {
+                                            "idle":  260,
+                                            "running-right":  155,
+                                            "running-left":  155,
+                                            "waving":  210,
+                                            "jumping":  175,
+                                            "failed":  220,
+                                            "waiting":  210,
+                                            "running":  160,
+                                            "review":  220
+                                        }
+                  },
+    "frameNotes":  {
+                       "wingMotion":  "Attached lower-back wings change openness and feather angle across frames.",
+                       "pixelArt":  true
+                   }
+}
